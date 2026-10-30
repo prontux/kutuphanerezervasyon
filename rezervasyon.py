@@ -48,16 +48,35 @@ try:
     img_path = "c.png"
     th_path = "ct.png"
     
-    img.screenshot(img_path)
-    
-    icv = cv2.imread(img_path)
-    gray = cv2.cvtColor(icv, cv2.COLOR_BGR2GRAY)
-    _, th = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-    cv2.imwrite(th_path, th)
-    
-    cfg = '--psm 8 -c tessedit_char_whitelist=0123456789'
-    code = pytesseract.image_to_string(Image.open(th_path), config=cfg).strip()
-    print("Captcha:", code)
+    # --- GÜVENLİ VE İYİLEŞTİRİLMİŞ CAPTCHA OKUMA DÖNGÜSÜ ---
+    code = ""
+    deneme = 0
+    while deneme < 10:
+        try:
+            img.screenshot(img_path)
+            icv = cv2.imread(img_path)
+            if icv is None:
+                time.sleep(0.5)
+                deneme += 1
+                continue
+            gray = cv2.cvtColor(icv, cv2.COLOR_BGR2GRAY)
+            resized = cv2.resize(gray, (0, 0), fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+            _, th = cv2.threshold(resized, 140, 255, cv2.THRESH_BINARY)
+            cv2.imwrite(th_path, th)
+            
+            cfg = '--psm 8 -c tessedit_char_whitelist=0123456789'
+            code = pytesseract.image_to_string(Image.open(th_path), config=cfg).strip()
+            
+            if len(code) == 6 and code.isdigit():
+                print("Captcha Başarıyla Okundu:", code)
+                break
+            else:
+                print(f"Okunan ({code}) 6 hane değil, tekrar deneniyor...")
+        except Exception:
+            pass
+        deneme += 1
+        time.sleep(0.1)
+    # ------------------------------------------------------
     
     cinp = driver.find_element(By.NAME, "code_girisForm")
     cinp.send_keys(code)
@@ -106,11 +125,34 @@ try:
     time.sleep(1.5)
 
     print("Koltuk seçiliyor (69-9)")
-    seat_js = "var seat = document.querySelector(\"span[data-id='69-9']\"); if(seat){ seat.scrollIntoView({block: 'center', inline: 'center'}); var rect = seat.getBoundingClientRect(); var cx = rect.left + (rect.width / 2); var cy = rect.top + (rect.height / 2); ['mousedown', 'mouseup', 'click'].forEach(function(eType) { var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true, clientX: cx, clientY: cy }); seat.dispatchEvent(ev); }); if (window.jQuery) { jQuery(\"span[data-id='69-9']\").trigger('click'); } }"
+    seat_js = (
+        "var seat = document.querySelector(\"span[data-id='69-9']\"); "
+        "if(seat){ "
+        "seat.scrollIntoView({block: 'center', inline: 'center'}); "
+        "var rect = seat.getBoundingClientRect(); "
+        "var cx = rect.left + (rect.width / 2); "
+        "var cy = rect.top + (rect.height / 2); "
+        "['mousedown', 'mouseup', 'click'].forEach(function(eType) { "
+        "var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true, clientX: cx, clientY: cy }); "
+        "seat.dispatchEvent(ev); "
+        "}); "
+        "if (window.jQuery) { jQuery(\"span[data-id='69-9']\").trigger('click'); } "
+        "}"
+    )
     driver.execute_script(seat_js)
 
     print("EVET butonuna basılıyor...")
-    btn_js = "var btn = document.querySelector('button.btn.btn-success.evet') || document.querySelector('button.evet'); if(btn){ btn.scrollIntoView({block: 'center', inline: 'center'}); ['mousedown', 'mouseup', 'click'].forEach(function(eType) { var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true }); btn.dispatchEvent(ev); }); btn.click(); }"
+    btn_js = (
+        "var btn = document.querySelector('button.btn.btn-success.evet') || document.querySelector('button.evet'); "
+        "if(btn){ "
+        "btn.scrollIntoView({block: 'center', inline: 'center'}); "
+        "['mousedown', 'mouseup', 'click'].forEach(function(eType) { "
+        "var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true }); "
+        "btn.dispatchEvent(ev); "
+        "}); "
+        "btn.click(); "
+        "}"
+    )
     driver.execute_script(btn_js)
     
     print("Rezervasyon başarıyla tamamlandı!")
