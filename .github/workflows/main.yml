@@ -1,0 +1,30 @@
+name: Otomatik Rezervasyon
+
+on:
+  schedule:
+    - cron: '57 20 * * *' # Türkiye saati ile 23:57 (UTC 20:57)
+  workflow_dispatch: # Manuel test edebilmemiz için eklenen buton
+
+jobs:
+  rezervasyon-yap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodları Çek
+        uses: actions/checkout@v4
+
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Tesseract-OCR ve Kütüphaneleri Yükle
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr
+          pip install opencv-python pillow selenium pytesseract
+
+      - name: Scripti Çalıştır
+        env:
+          TC_KIMLIK: ${{ secrets.TC_KIMLIK }}
+          SIFRE: ${{ secrets.SIFRE }}
+        run: python rezervasyon.py
