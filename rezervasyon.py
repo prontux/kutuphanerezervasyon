@@ -15,12 +15,13 @@ from selenium.webdriver.support import expected_conditions as EC
 
 URL = "https://ktprezervasyon.uskudar.bel.tr/?p=2"
 TZ = ZoneInfo("Europe/Istanbul")
-HEDEF_SEANS = "13:00"
+HEDEF_SEANS = "17:00"
 ON_HAZIRLIK_SEANS = "19:00"
 KOLTUK = "69-9"
-YEDEK_INDEX = 2  # 13:00 bulunamazsa listedeki 3. seçenek (index 0 = 1. seçenek)
+YEDEK_INDEX = 1  # 17:00 bulunamazsa listedeki 2. seçenek (index 0 = 1. seçenek)
 LOGIN_DENEME = 30      # giriş için en fazla deneme (zaman sınırı da var)
-HAZIRLIK_SON = (23, 55)  # hazırlık (giriş + 19:00) en geç bu saate kadar tekrar denenir
+HAZIRLIK_SON = (23, 58)  # hazırlık (giriş + salon/seans seçimi) en geç bu saate kadar tekrar denenir
+SALON_ADI = "HALUK DURSUN"  # salon listesinde aranan ad (büyük harfle yazılmalı)
 REZ_DENEME = 3         # 00:00 sonrası rezervasyon adımı için deneme sayısı
 
 print(f"Basliyor (Ön Hazırlık: {ON_HAZIRLIK_SEANS}, Rezervasyon: {HEDEF_SEANS}, Koltuk: {KOLTUK})")
@@ -154,8 +155,76 @@ def sonucu_dogrula(driver):
     return any(k in kucuk for k in basari)
 
 
+SALON_JS = """
+    var hedef = arguments[0];
+    var sadeceKontrol = arguments[1];
+    var sels = document.querySelectorAll('select');
+    for (var i = 0; i < sels.length; i++) {
+        var ss = sels[i];
+        for (var j = 0; j < ss.options.length; j++) {
+            if ((ss.options[j].text || '').toUpperCase().indexOf(hedef) !== -1) {
+                if (sadeceKontrol) { return 'var'; }
+                if (ss.selectedIndex === j) { return 'zaten'; }
+                ss.selectedIndex = j;
+                ss.dispatchEvent(new Event('change'));
+                if (window.jQuery) { jQuery(ss).trigger('change'); }
+                return 'secildi';
+            }
+        }
+    }
+    return 'yok';
+"""
+
+
+def salon_sec(driver, sadece_kontrol=False):
+    """Salon listesinde SALON_ADI'nı seçer.
+    Dönüş: 'secildi', 'zaten' (zaten seçili), 'var' (sadece_kontrol=True iken), 'yok' (liste bulunamadı)."""
+    try:
+        return driver.execute_script(SALON_JS, SALON_ADI, sadece_kontrol)
+    except Exception:
+        return "yok"
+
+
+def kapat_popup(driver):
+    """'CUMA günleri salonumuz kapalıdır' gibi bir uyarı penceresi açıksa 'Kapat'a basar (hata vermez)."""
+    try:
+        driver.execute_script("""
+            if (document.body.innerText.toLowerCase().indexOf('salonumuz kapal') === -1) { return; }
+            var els = document.querySelectorAll('button, a, .btn');
+            for (var i = 0; i < els.length; i++) {
+                var t = (els[i].innerText || '').trim().toLowerCase();
+                if (t === 'kapat' && els[i].offsetParent !== null) { els[i].click(); }
+            }
+        """)
+    except Exception:
+        pass
+
+
+def seans_ya_da_yonlendirme(driver):
+    """Kütüphane seçildikten sonra iki durumdan birini bekler:
+    ('seans', eleman)     -> 19:00 seans bağlantısı listede (normal akış)
+    ('yonlendirme', None) -> "Uygun seans bulunamamıştır" mesajı ya da harita sayfası (23:45 sonrası)"""
+    try:
+        for e in driver.find_elements(By.XPATH, f"//a[contains(@data-seans, '{ON_HAZIRLIK_SEANS}')]"):
+            if e.is_displayed():
+                return ("seans", e)
+    except Exception:
+        pass
+    try:
+        govde = driver.find_element(By.TAG_NAME, "body").text.lower()
+        if "seans bulunam" in govde:
+            return ("yonlendirme", None)
+    except Exception:
+        pass
+    # Mesaj çok kısa görünüp yönlendirme bitmişse: harita sayfasındaki salon listesi var mı?
+    if salon_sec(driver, True) == "var":
+        return ("yonlendirme", None)
+    return False
+
+
 def hazirlik(driver, w, tc, sifre):
-    """Giriş + kütüphane + 19:00 seansı. Hata olursa exception fırlatır."""
+    """Giriş + kütüphane + 19:00 seansı. 23:45'ten sonra seans listesi gelmez, harita sayfasına
+    yönlendirilir; o durumda salon seçilip orada beklenir. Hata olursa exception fırlatır."""
     if not giris_yap(driver, tc, sifre):
         raise RuntimeError("Giriş yapılamadı (captcha/şifre).")
 
@@ -167,15 +236,35 @@ def hazirlik(driver, w, tc, sifre):
     )
     driver.execute_script("arguments[0].click();", kbtn)
 
-    print(f"Ön hazırlık için {ON_HAZIRLIK_SEANS} seansına tıklanıyor...")
-    s1 = w.until(
-        EC.element_to_be_clickable((By.XPATH, f"//a[contains(@data-seans, '{ON_HAZIRLIK_SEANS}')]"))
-    )
-    driver.execute_script("arguments[0].click();", s1)
+    print("Seans listesi / yönlendirme bekleniyor...")
+    durum, eleman = w.until(seans_ya_da_yonlendirme)
+    if durum == "seans":
+        print(f"Ön hazırlık için {ON_HAZIRLIK_SEANS} seansına tıklanıyor...")
+        driver.execute_script("arguments[0].click();", eleman)
+        return
+
+    # 23:45'ten sonra: "Uygun seans bulunamamıştır" -> harita sayfasına yönlendirilir
+    print("23:45 sonrası modu: seans listesi yok, harita sayfasında salon seçilip 00:00 bekleniyor...")
+    w.until(lambda d: salon_sec(d) != "yok")
+    time.sleep(1.5)
+    kapat_popup(driver)
+    print("Harita sayfası hazır, 00:00'da yenilenecek.")
 
 
 def rezervasyon_yap(driver, w):
     """00:00 sonrası: tarih, seans, koltuk, EVET. Doğrulama sonucunu döner."""
+    # Yenilemeden sonra salon sıfırlanmış olabilir (23:45 sonrası modu); doğru salonu garantiye al
+    durum = "yok"
+    for _ in range(4):
+        durum = salon_sec(driver)
+        if durum != "yok":
+            break
+        time.sleep(0.25)
+    if durum == "secildi":
+        print("Salon yeniden seçildi.")
+        time.sleep(1.0)
+    kapat_popup(driver)
+
     print("Filtre açılıyor")
     fbtn = w.until(EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'acKapat')]")))
     driver.execute_script("arguments[0].click();", fbtn)
@@ -188,6 +277,10 @@ def rezervasyon_yap(driver, w):
         "if(window.jQuery){ jQuery(ts).trigger('change'); }}"
     )
     time.sleep(0.8)
+
+    if driver.execute_script("return document.body.innerText.toLowerCase().indexOf('salonumuz kapal') !== -1;"):
+        print("UYARI: 'salonumuz kapalıdır' uyarısı görüldü (seçilen tarih Cuma olabilir).")
+        kapat_popup(driver)
 
     print(f"Asıl rezervasyon için {HEDEF_SEANS} seansı seçiliyor...")
     seans_js = """
