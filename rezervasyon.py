@@ -10,10 +10,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-print("Basliyor - Yol Garantili Operasyon Modu")
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+print("Basliyor - Bulut Uyumlu Operasyon Modu")
 
 opts = Options()
+# Bulut sunucuda ekran olmadığı için headless modu aktif:
+opts.add_argument("--headless=new")
 opts.add_argument("--start-maximized")
 opts.add_argument("--disable-gpu")
 opts.add_argument("--no-sandbox")
@@ -35,17 +36,17 @@ try:
     time.sleep(1)
     u = w.until(EC.presence_of_element_located((By.NAME, "kullanici")))
     u.clear()
-    u.send_keys("36259708336")
+    u.send_keys(os.environ.get('TC_KIMLIK'))
     
     p = driver.find_element(By.NAME, "sifre")
     p.clear()
-    p.send_keys("Tahareda11!")
+    p.send_keys(os.environ.get('SIFRE'))
 
     img = w.until(EC.presence_of_element_located((By.XPATH, "//img[@class='captcha']")))
     
-    # Dosya yolları masaüstüne sabitlendi
-    img_path = r"C:\Users\HP\Desktop\c.png"
-    th_path = r"C:\Users\HP\Desktop\ct.png"
+    # Bulut sunucuya uygun geçici dosya yolları
+    img_path = "c.png"
+    th_path = "ct.png"
     
     img.screenshot(img_path)
     
