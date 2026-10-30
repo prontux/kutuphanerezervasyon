@@ -118,8 +118,8 @@ try:
     driver.execute_script("var ts = document.querySelector('select[name=\"tarih\"]'); if(ts){ ts.selectedIndex = ts.options.length - 1; ts.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ts).trigger('change'); }}")
     time.sleep(0.8)
 
-    print("08:00 seansı seçiliyor")
-    driver.execute_script("var ss = document.querySelector('select[name=\"seans\"]'); if(ss){ for(var i=0; i<ss.options.length; i++){ if(ss.options[i].text.includes('08:00')){ ss.selectedIndex = i; break; }} if(ss.selectedIndex <= 0 && ss.options.length > 1){ ss.selectedIndex = 1; } ss.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ss).trigger('change'); }}")
+    print("13:00 seansı seçiliyor")
+    driver.execute_script("var ss = document.querySelector('select[name=\"seans\"]'); if(ss){ for(var i=0; i<ss.options.length; i++){ if(ss.options[i].text.includes('13:00')){ ss.selectedIndex = i; break; }} if(ss.selectedIndex <= 0 && ss.options.length > 1){ ss.selectedIndex = 1; } ss.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ss).trigger('change'); }}")
     
     print("Seansın yüklenmesi bekleniyor...")
     time.sleep(1.5)
