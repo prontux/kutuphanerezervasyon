@@ -10,10 +10,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-print("Basliyor - Bulut Uyumlu Operasyon Modu")
+print("Basliyor - Bulut Uyumlu Mod (Ön Hazırlık: 19:00, Rezervasyon: 13:00)")
 
 opts = Options()
-# Bulut sunucuda ekran olmadığı için headless modu aktif:
 opts.add_argument("--headless=new")
 opts.add_argument("--start-maximized")
 opts.add_argument("--disable-gpu")
@@ -44,11 +43,9 @@ try:
 
     img = w.until(EC.presence_of_element_located((By.XPATH, "//img[@class='captcha']")))
     
-    # Bulut sunucuya uygun geçici dosya yolları
     img_path = "c.png"
     th_path = "ct.png"
     
-    # --- GÜVENLİ VE İYİLEŞTİRİLMİŞ CAPTCHA OKUMA DÖNGÜSÜ ---
     code = ""
     deneme = 0
     while deneme < 10:
@@ -70,13 +67,10 @@ try:
             if len(code) == 6 and code.isdigit():
                 print("Captcha Başarıyla Okundu:", code)
                 break
-            else:
-                print(f"Okunan ({code}) 6 hane değil, tekrar deneniyor...")
         except Exception:
             pass
         deneme += 1
         time.sleep(0.1)
-    # ------------------------------------------------------
     
     cinp = driver.find_element(By.NAME, "code_girisForm")
     cinp.send_keys(code)
@@ -92,10 +86,11 @@ try:
     kbtn = w.until(EC.presence_of_element_located((By.XPATH, "//button[contains(., 'HALUK DURSUN KÜTÜPHANESİ')]")))
     driver.execute_script("arguments[0].click();", kbtn)
 
-    s1 = w.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@data-seans, '13:00')]")))
+    # 1. ADIM (Ön Hazırlık): İlk ekranda 19:00 seçilerek içeri giriliyor
+    print("Ön hazırlık için 19:00 seansına tıklanıyor...")
+    s1 = w.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@data-seans, '19:00')]")))
     driver.execute_script("arguments[0].click();", s1)
 
-    # --- GECE YARISI 00:00 BEKLEME DÖNGÜSÜ ---
     print("Gece yarısı 00:00 bekleniyor...")
     while True:
         now = datetime.now()
@@ -103,7 +98,6 @@ try:
             print("Saat 00:00 oldu, işlem başlatılıyor!")
             break
         time.sleep(0.01)
-    # ----------------------------------------
 
     print("Sayfa yenileniyor...")
     driver.refresh()
@@ -118,41 +112,42 @@ try:
     driver.execute_script("var ts = document.querySelector('select[name=\"tarih\"]'); if(ts){ ts.selectedIndex = ts.options.length - 1; ts.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ts).trigger('change'); }}")
     time.sleep(0.8)
 
-    print("13:00 seansı seçiliyor")
+    # 2. ADIM (00:00 Sonrası): Asıl rezervasyon için 13:00 seçiliyor
+    print("Asıl rezervasyon için 13:00 seansı seçiliyor...")
     driver.execute_script("var ss = document.querySelector('select[name=\"seans\"]'); if(ss){ for(var i=0; i<ss.options.length; i++){ if(ss.options[i].text.includes('13:00')){ ss.selectedIndex = i; break; }} if(ss.selectedIndex <= 0 && ss.options.length > 1){ ss.selectedIndex = 1; } ss.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ss).trigger('change'); }}")
     
     print("Seansın yüklenmesi bekleniyor...")
     time.sleep(1.5)
 
     print("Koltuk seçiliyor (69-9)")
-    seat_js = (
-        "var seat = document.querySelector(\"span[data-id='69-9']\"); "
-        "if(seat){ "
-        "seat.scrollIntoView({block: 'center', inline: 'center'}); "
-        "var rect = seat.getBoundingClientRect(); "
-        "var cx = rect.left + (rect.width / 2); "
-        "var cy = rect.top + (rect.height / 2); "
-        "['mousedown', 'mouseup', 'click'].forEach(function(eType) { "
-        "var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true, clientX: cx, clientY: cy }); "
-        "seat.dispatchEvent(ev); "
-        "}); "
-        "if (window.jQuery) { jQuery(\"span[data-id='69-9']\").trigger('click'); } "
-        "}"
-    )
+    seat_js = """
+        var seat = document.querySelector("span[data-id='69-9']");
+        if(seat){
+            seat.scrollIntoView({block: 'center', inline: 'center'});
+            var rect = seat.getBoundingClientRect();
+            var cx = rect.left + (rect.width / 2);
+            var cy = rect.top + (rect.height / 2);
+            ['mousedown', 'mouseup', 'click'].forEach(function(eType) {
+                var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true, clientX: cx, clientY: cy });
+                seat.dispatchEvent(ev);
+            });
+            if (window.jQuery) { jQuery("span[data-id='69-9']").trigger('click'); }
+        }
+    """
     driver.execute_script(seat_js)
 
     print("EVET butonuna basılıyor...")
-    btn_js = (
-        "var btn = document.querySelector('button.btn.btn-success.evet') || document.querySelector('button.evet'); "
-        "if(btn){ "
-        "btn.scrollIntoView({block: 'center', inline: 'center'}); "
-        "['mousedown', 'mouseup', 'click'].forEach(function(eType) { "
-        "var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true }); "
-        "btn.dispatchEvent(ev); "
-        "}); "
-        "btn.click(); "
-        "}"
-    )
+    btn_js = """
+        var btn = document.querySelector('button.btn.btn-success.evet') || document.querySelector('button.evet');
+        if(btn){
+            btn.scrollIntoView({block: 'center', inline: 'center'});
+            ['mousedown', 'mouseup', 'click'].forEach(function(eType) {
+                var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true });
+                btn.dispatchEvent(ev);
+            });
+            btn.click();
+        }
+    """
     driver.execute_script(btn_js)
     
     print("Rezervasyon başarıyla tamamlandı!")
