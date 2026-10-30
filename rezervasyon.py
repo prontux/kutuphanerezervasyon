@@ -10,7 +10,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-print("Basliyor - Bulut Uyumlu Mod (Ön Hazırlık: 19:00, Rezervasyon: 13:00)")
+print("Basliyor - Bulut Uyumlu Kararlı Mod (Ön Hazırlık: 19:00, Rezervasyon: 13:00)")
 
 opts = Options()
 opts.add_argument("--headless=new")
@@ -86,7 +86,7 @@ try:
     kbtn = w.until(EC.presence_of_element_located((By.XPATH, "//button[contains(., 'HALUK DURSUN KÜTÜPHANESİ')]")))
     driver.execute_script("arguments[0].click();", kbtn)
 
-    # 1. ADIM (Ön Hazırlık): İlk ekranda 19:00 seçilerek içeri giriliyor
+    # 1. ADIM (Ön Hazırlık): 19:00 seçilerek içeri giriliyor
     print("Ön hazırlık için 19:00 seansına tıklanıyor...")
     s1 = w.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(@data-seans, '19:00')]")))
     driver.execute_script("arguments[0].click();", s1)
@@ -112,9 +112,27 @@ try:
     driver.execute_script("var ts = document.querySelector('select[name=\"tarih\"]'); if(ts){ ts.selectedIndex = ts.options.length - 1; ts.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ts).trigger('change'); }}")
     time.sleep(0.8)
 
-    # 2. ADIM (00:00 Sonrası): Asıl rezervasyon için 13:00 seçiliyor
+    # 2. ADIM (00:00 Sonrası): 13:00 seçimi (sağlamlaştırılmış script)
     print("Asıl rezervasyon için 13:00 seansı seçiliyor...")
-    driver.execute_script("var ss = document.querySelector('select[name=\"seans\"]'); if(ss){ for(var i=0; i<ss.options.length; i++){ if(ss.options[i].text.includes('13:00')){ ss.selectedIndex = i; break; }} if(ss.selectedIndex <= 0 && ss.options.length > 1){ ss.selectedIndex = 1; } ss.dispatchEvent(new Event('change')); if(window.jQuery){ jQuery(ss).trigger('change'); }}")
+    seans_js = """
+        var ss = document.querySelector('select[name="seans"]');
+        if(ss){
+            var found = false;
+            for(var i=0; i<ss.options.length; i++){
+                if(ss.options[i].text.includes('13:00') || ss.options[i].value.includes('13:00')){
+                    ss.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if(!found && ss.options.length > 1){
+                ss.selectedIndex = 1;
+            }
+            ss.dispatchEvent(new Event('change'));
+            if(window.jQuery){ jQuery(ss).trigger('change'); }
+        }
+    """
+    driver.execute_script(seans_js)
     
     print("Seansın yüklenmesi bekleniyor...")
     time.sleep(1.5)
