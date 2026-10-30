@@ -231,6 +231,7 @@ def rezervasyon_yap(driver, w):
             var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true, clientX: cx, clientY: cy });
             seat.dispatchEvent(ev);
         });
+        if (window.jQuery) { jQuery("span[data-id='" + arguments[0] + "']").trigger('click'); }
         return 'ok:' + seat.className;
     """
     sonuc = driver.execute_script(seat_js, KOLTUK)
@@ -239,8 +240,22 @@ def rezervasyon_yap(driver, w):
         raise RuntimeError(f"Koltuk {KOLTUK} sayfada bulunamadı.")
 
     print("EVET butonu bekleniyor...")
-    btn = w.until(lambda d: d.find_element(By.CSS_SELECTOR, "button.evet"))
-    driver.execute_script("arguments[0].scrollIntoView({block:'center'}); arguments[0].click();", btn)
+    w.until(lambda d: d.find_element(By.CSS_SELECTOR, "button.evet"))
+    btn_js = """
+        var btn = document.querySelector('button.btn.btn-success.evet') || document.querySelector('button.evet');
+        if(!btn){ return 'evet-yok'; }
+        btn.scrollIntoView({block: 'center', inline: 'center'});
+        ['mousedown', 'mouseup', 'click'].forEach(function(eType) {
+            var ev = new MouseEvent(eType, { view: window, bubbles: true, cancelable: true });
+            btn.dispatchEvent(ev);
+        });
+        btn.click();
+        return 'ok';
+    """
+    sonuc = driver.execute_script(btn_js)
+    print("EVET sonucu:", sonuc)
+    if sonuc != "ok":
+        raise RuntimeError("EVET butonu bulunamadı.")
     time.sleep(2)
 
     return sonucu_dogrula(driver)
