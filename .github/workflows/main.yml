@@ -2,7 +2,7 @@ name: Otomatik Rezervasyon
 
 on:
   schedule:
-    - cron: '57 20 * * *' # Türkiye saati ile 23:57 (UTC 20:57)
+    - cron: '40 20 * * *' # Türkiye saati ile 23:57 (UTC 20:57)
   workflow_dispatch: # Manuel test edebilmemiz için eklenen buton
 
 jobs:
